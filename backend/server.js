@@ -5,7 +5,7 @@ const http = require('http');
 require('dotenv').config();
 
 const db = require('./config/database');
-const orderRoutes = require('./routes/orders');
+const orderRoutes = require('./routes/orders.js');
 const wineryRoutes = require('./routes/wineries');
 
 const app = express();
