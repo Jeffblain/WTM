@@ -1,0 +1,24 @@
+0 info it worked if it ends with ok
+1 verbose cli [
+1 verbose cli   'C:\\Program Files\\nodejs\\node.exe',
+1 verbose cli   'C:\\Users\\jeffb\\AppData\\Roaming\\npm\\node_modules\\npm\\bin\\npm-cli.js',
+1 verbose cli   'install'
+1 verbose cli ]
+2 info using npm@1.3.0
+3 info using node@v22.14.0
+4 error install Couldn't read dependencies
+5 error Error: ENOENT: no such file or directory, open 'C:\Users\jeffb\OneDrive\Documents\06 PROJECTS\Wine Tasting Management Tool\WTM\backend\package.json'
+6 error If you need help, you may report this log at:
+6 error     <http://github.com/isaacs/npm/issues>
+6 error or email it to:
+6 error     <npm-@googlegroups.com>
+7 error System Windows_NT 10.0.26100
+8 error command "C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\jeffb\\AppData\\Roaming\\npm\\node_modules\\npm\\bin\\npm-cli.js" "install"
+9 error cwd C:\Users\jeffb\OneDrive\Documents\06 PROJECTS\Wine Tasting Management Tool\WTM\backend
+10 error node -v v22.14.0
+11 error npm -v 1.3.0
+12 error path C:\Users\jeffb\OneDrive\Documents\06 PROJECTS\Wine Tasting Management Tool\WTM\backend\package.json
+13 error syscall open
+14 error code ENOENT
+15 error errno -4058
+16 verbose exit [ -4058, true ]
