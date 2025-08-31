@@ -46,14 +46,13 @@
         }
         
         .connection-status {
-            position: fixed;
-            bottom: 20px;
+            position: absolute;
+            top: 20px;
             right: 20px;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 0.8rem;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
             font-weight: 600;
-            z-index: 1000;
             transition: all 0.3s;
         }
         
@@ -381,7 +380,7 @@
     <script>
         const API_BASE = window.location.hostname === 'localhost' 
             ? 'http://localhost:3001' 
-            : 'https://wtm-production.up.railway.app/health';
+            : 'https://wtm-production.up.railway.app';
             
         let connectionStatus = false;
         let currentGroupId = null;

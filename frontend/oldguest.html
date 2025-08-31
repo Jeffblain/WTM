@@ -45,7 +45,15 @@
         }
         
         .connection-status {
-            display: none; /* Hidden for guests - not useful for them */
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 1000;
+            transition: all 0.3s;
         }
         
         .connection-status.connected {
@@ -299,7 +307,7 @@
     <script>
         const API_BASE = window.location.hostname === 'localhost' 
             ? 'http://localhost:3001' 
-            : 'https://wtm-production.up.railway.app/health';
+            : 'https://wtm-production.up.railway.app';
             
         let connectionStatus = false;
         let submitInProgress = false;
