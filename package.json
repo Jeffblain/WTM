@@ -1,5 +1,30 @@
 {
+  "name": "wine-tasting-management",
+  "version": "1.0.0",
+  "description": "Wine tasting management system for wineries",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build": "echo 'No build step needed'",
+    "test": "echo 'Tests not configured yet'"
+  },
   "dependencies": {
-    "socket.io": "^4.8.1"
-  }
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "wine",
+    "tasting",
+    "management", 
+    "postgresql",
+    "nodejs"
+  ],
+  "author": "Impaxx.ca",
+  "license": "MIT"
 }
