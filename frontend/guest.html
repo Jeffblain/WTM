@@ -299,7 +299,7 @@
     <script>
         const API_BASE = window.location.hostname === 'localhost' 
             ? 'http://localhost:3001' 
-            : 'https://wtm-production.up.railway.app/health';
+            : 'https://wtm-production.up.railway.app';
             
         let connectionStatus = false;
         let submitInProgress = false;
@@ -405,10 +405,12 @@
                         const label = document.getElementById(`checkboxLabel-${wineIndex}-${i}`);
                         const input = document.getElementById(`wine${wineIndex}-g${i}`);
                         
-                        checkbox.classList.add('inactive');
-                        label.textContent = `Invité ${i}`;
-                        input.disabled = true;
-                        input.checked = false;
+                        if (checkbox && label && input) {
+                            checkbox.classList.add('inactive');
+                            label.textContent = `Invité ${i}`;
+                            input.disabled = true;
+                            input.checked = false;
+                        }
                     });
                 }
             }
