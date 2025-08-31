@@ -131,12 +131,13 @@ const server = http.createServer(async (req, res) => {
       const groupsArray = Array.from(groups.values()).map(group => ({
         ...group,
         hasOrder: orders.has(group.orderId),
-        lastUpdate: new Date().toLocaleString('fr-CA', {
-          timeZone: 'America/Montreal',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      }));
+        // Calculate actual counts from the order data
+        guestCount: group.orderId && orders.has(group.orderId) ? 
+            Object.keys(orders.get(group.orderId).guestNames || {}).length : 0,
+        wineCount: group.orderId && orders.has(group.orderId) ? 
+            Object.values(orders.get(group.orderId).selections || {})
+                .reduce((total, wines) => total + wines.length, 0) : 0
+    }));
       
       console.log('📤 Returning groups:', groupsArray.length);
       res.end(JSON.stringify(groupsArray));

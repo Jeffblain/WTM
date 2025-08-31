@@ -394,6 +394,7 @@
             setupEventListeners();
             checkConnection();
             loadGroups();
+            populateGroups();
             
             // Auto-refresh every 30 seconds
             autoRefreshInterval = setInterval(() => {
@@ -515,38 +516,20 @@
             console.log('🎯 Selecting group:', groupName, 'submitted:', isSubmitted);
             
             try {
-                // Use config API base
-                const apiBase = CONFIG ? CONFIG.apiBase : (window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://wtm-production.up.railway.app');
+                const apiBase = 'https://wtm-production.up.railway.app';
                 
-                // First get all groups to find the right one
-                const groupsResponse = await fetch(`${apiBase}/api/groups`);
-                if (!groupsResponse.ok) {
-                    throw new Error(`Groups API returned ${groupsResponse.status}`);
-                }
+                // Normalize the group name to match server format
+                const normalizedName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                console.log('🔄 Normalized name:', normalizedName);
                 
-                const groups = await groupsResponse.json();
-                console.log('📋 Available groups:', groups);
-                
-                const group = groups.find(g => g.name === groupName);
-                if (!group) {
-                    console.error('❌ Group not found:', groupName);
-                    displayError(`Group "${groupName}" not found`);
-                    return;
-                }
-                
-                console.log('✅ Found group:', group);
-                
-                // Try multiple approaches to get the order
-                let order = null;
+                // Try both the original name and normalized name
                 const attempts = [
-                    group.orderId,                                           // Direct order ID
-                    group.id,                                               // Group ID  
-                    groupName.toLowerCase().replace(/[^a-z0-9]/g, '_')     // Normalized name
+                    groupName,           // Original display name
+                    normalizedName       // Server-normalized name
                 ];
                 
+                let order = null;
                 for (const identifier of attempts) {
-                    if (!identifier) continue;
-                    
                     console.log('🔍 Trying identifier:', identifier);
                     
                     try {
@@ -558,11 +541,9 @@
                                 console.log('✅ Found order with identifier:', identifier);
                                 break;
                             }
-                        } else {
-                            console.log('❌ No order found with identifier:', identifier, 'Status:', orderResponse.status);
                         }
                     } catch (err) {
-                        console.log('⚠️  Error fetching with identifier:', identifier, err.message);
+                        console.log('⚠️ Error with identifier:', identifier, err.message);
                     }
                 }
                 
@@ -572,21 +553,7 @@
                     showGroupDetailsView();
                 } else {
                     console.error('❌ Could not retrieve order for group:', groupName);
-                    
-                    // Enhanced error display with debug info
-                    const debugInfo = {
-                        groupName: groupName,
-                        groupId: group.id,
-                        orderId: group.orderId,
-                        attempts: attempts,
-                        apiBase: apiBase
-                    };
-                    
-                    if (CONFIG && CONFIG.serverSaving) {
-                        displayError(`Debug Info for "${groupName}":\n${JSON.stringify(debugInfo, null, 2)}`);
-                    } else {
-                        displayError(`Unable to load details for "${groupName}". Please try refreshing the page.`);
-                    }
+                    displayError(`Unable to load details for "${groupName}". Available in server: test_group_day_3_7`);
                 }
                 
             } catch (error) {
@@ -595,6 +562,165 @@
             }
         }
         
+        function displayGroupData(order) {
+            currentGroupData = order; // Store for status updates
+            const content = document.getElementById('hostContent');
+            if (!content) {
+                console.error('hostContent element not found');
+                return;
+            }
+            
+            let html = `
+                <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
+                    <h2>🍷 Groupe: ${order.groupName}</h2>
+                    <p><strong>Soumise:</strong> ${order.submittedAt || order.timestamp}</p>
+                </div>
+            `;
+            
+            // Loop through each guest's selections
+            for (let guest = 1; guest <= 4; guest++) {
+                const guestKey = `guest${guest}`;
+                const guestSelections = order.selections[guestKey] || [];
+                
+                if (guestSelections.length > 0) {
+                    const guestName = order.guestNames && order.guestNames[guestKey] ? 
+                        order.guestNames[guestKey] : `Guest ${guest}`;
+                    
+                    html += `
+                        <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; border-left: 4px solid #007bff;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span style="font-weight: 700;">${guestName}</span>
+                            </div>
+                    `;
+                    
+                    guestSelections.forEach((item, index) => {
+                        html += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                <span style="flex: 1;">${item.wine}</span>
+                                <button onclick="cycleStatus('${guestKey}', ${index})" 
+                                        style="padding: 6px 12px; border: none; border-radius: 15px; cursor: pointer; 
+                                                background: ${item.status === 'servi' ? '#28a745' : '#ffc107'}; 
+                                                color: ${item.status === 'servi' ? 'white' : '#212529'};">
+                                    ${item.status || 'Non servi'}
+                                </button>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                }
+            }
+            
+            content.innerHTML = html;
+}
+
+        function cycleStatus(guestKey, wineIndex) {
+            // You'll need to track current group data globally
+            if (!currentGroupData) {
+                console.error('No group data available');
+                return;
+            }
+            
+            const wine = currentGroupData.selections[guestKey][wineIndex];
+            if (!wine) return;
+            
+            // Cycle through status options
+            const statuses = ['non-servi', 'servi'];
+            const currentIndex = statuses.indexOf(wine.status || 'non-servi');
+            const nextIndex = (currentIndex + 1) % statuses.length;
+            wine.status = statuses[nextIndex];
+            
+            // Update display
+            displayGroupData(currentGroupData);
+            
+            // Optional: Send update to server
+            console.log(`Updated ${guestKey} wine ${wineIndex} to ${wine.status}`);
+        }
+
+        async function populateGroups() {
+            try {
+                const apiBase = 'https://wtm-production.up.railway.app';
+                
+                const response = await fetch(`${apiBase}/api/groups`);
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}`);
+                }
+                
+                const groups = await response.json();
+                console.log('📋 Loaded groups:', groups);
+                
+                const grid = document.getElementById('groupsGrid');
+                if (!grid) {
+                    console.error('❌ groupsGrid element not found');
+                    return;
+                }
+                
+                if (groups.length === 0) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #666;">
+                            <h3>No groups yet</h3>
+                            <p>Groups will appear here when guests submit their wine selections</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                groups.forEach(group => {
+                    // Debug what we're getting
+                    console.log('Group data:', group);
+                    
+                    const guestCount = group.guestCount || 0;
+                    const wineCount = group.wineCount || 0;
+                    const timestamp = group.timestamp || group.submittedAt || 'Recent';
+                    
+                    html += `
+                        <div class="group-tile" onclick="selectGroup('${group.name}', true)" 
+                            style="cursor: pointer; transition: all 0.3s; background: white; padding: 20px; border-radius: 15px; text-align: center;">
+                            <div class="wine-glass" style="font-size: 3rem; margin-bottom: 10px;">🍷</div>
+                            <div class="group-name" style="font-weight: 700; font-size: 1.1rem; color: #333; margin-bottom: 5px;">${group.name}</div>
+                            <div class="group-info" style="font-size: 0.9rem; color: #666;">${guestCount} invités • ${wineCount} sélections</div>
+                            <div class="group-info" style="font-size: 0.8em; color: #999; margin-top: 5px;">${timestamp}</div>
+                        </div>
+                    `;
+                });
+                
+                grid.innerHTML = html;
+                
+                // Update the stats at the top
+                const totalGroups = groups.length;
+                const totalGuests = groups.reduce((sum, group) => sum + (group.guestCount || 0), 0);
+                
+                // Update group count display
+                const groupCountElement = document.querySelector('.stat-number'); 
+                if (groupCountElement) {
+                    groupCountElement.textContent = totalGroups;
+                }
+                
+                // Update guest count display  
+                const guestCountElements = document.querySelectorAll('.stat-number');
+                if (guestCountElements[1]) {
+                    guestCountElements[1].textContent = totalGuests;
+                }
+                
+            } catch (error) {
+                console.error('💥 Error loading groups:', error);
+                const grid = document.getElementById('groupsGrid');
+                if (grid) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #dc3545;">
+                            <h3>⚠️ Connection Error</h3>
+                            <p>${error.message}</p>
+                            <button onclick="populateGroups()" style="margin-top: 10px; padding: 8px 16px; 
+                                    background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                🔄 Retry
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
         function displayError(message) {
             const content = document.getElementById('hostContent');
             if (!content) {
