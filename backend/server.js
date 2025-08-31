@@ -20,11 +20,8 @@ app.use(express.json());
 
 // Database configuration
 const pool = new Pool({
-    host: process.env.PGHOST || 'localhost',
-    port: process.env.PGPORT || 5432,
-    database: process.env.PGDATABASE || 'railway',
-    user: process.env.PGUSER || 'postgres',
-    password: process.env.PGPASSWORD || 'your_password',
+    connectionString: 'postgresql://postgres:cdTweSMNJCPTGuukxJMNQJcWAIgAUYYH@interchange.proxy.rlwy.net:19798/railway',
+    ssl: { rejectUnauthorized: false }
 });
 
 // Test database connection
@@ -149,22 +146,18 @@ app.post('/api/orders', async (req, res) => {
                 winery_id, 
                 group_name, 
                 guest_names, 
-                selections, 
-                table_number, 
-                notes,
+                selections,
                 status,
                 created_at,
                 updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+            ) VALUES ($1, $2, $3, $4, $5, 'active', NOW(), NOW())
             RETURNING *
         `, [
+            Date.now(), // Use timestamp as unique ID
             wineryId,
             groupName,
             JSON.stringify(guestNames),
-            JSON.stringify(selections),
-            tableNumber,
-            notes,
-            'active'
+            JSON.stringify(selections)
         ]);
         
         const newOrder = result.rows[0];

@@ -367,6 +367,8 @@
             color: white;
             font-weight: 600;
             z-index: 1000;
+                /* Add this to prevent scrolling issues */
+            transform: translateZ(0);
         }
         
         .connected {
@@ -767,7 +769,7 @@
                             selections[guest].push({
                                 wineId: wine.id,
                                 wineName: wine.name,
-                                status: 'pending'
+                                status: 'non-servi'  // Start with French status
                             });
                         }
                     });
@@ -1017,7 +1019,9 @@
                     
                     guestSelections.forEach((item, index) => {
                         const statusClass = getStatusClass(item.status);
-                        const statusDisplay = item.status.charAt(0).toUpperCase() + item.status.slice(1);
+                        const statusDisplay = item.status === 'pending' ? 'Non-servi' : 
+                                              item.status === 'served' ? 'Servi' : 
+                                              item.status.charAt(0).toUpperCase() + item.status.slice(1);
                         
                         html += `
                             <div class="wine-service-item">
@@ -1050,7 +1054,7 @@
         
         // 🔄 Update wine status (served/not served) - BULLETPROOF
         async function updateWineStatus(orderId, guest, itemIndex, currentStatus) {
-            const newStatus = currentStatus === 'non-servi' ? 'servi' : 'non-servi';
+            const newStatus = (currentStatus === 'non-servi' || currentStatus === 'pending') ? 'servi' : 'non-servi';
             
             // Prevent multiple clicks
             const buttonElements = document.querySelectorAll(`[onclick*="updateWineStatus('${orderId}', ${guest}, ${itemIndex}"]`);
@@ -1118,11 +1122,10 @@
             switch(status.toLowerCase()) {
                 case 'served': 
                 case 'servi': return 'status-servi';
-                case 'pending':
                 case 'non-servi': 
                 case 'non servi': return 'status-non-servi';
                 default: return 'status-non-servi';
-            }
+         }
         }
         
         function updateConnectionStatus(type, message) {

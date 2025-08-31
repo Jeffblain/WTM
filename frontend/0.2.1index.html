@@ -153,6 +153,8 @@
         }
         
         .wine-item {
+            padding: 15px 10px; /* Increase padding for more space */
+            min-height: 100px; /* Ensure minimum height for full descriptions */
             font-weight: 600;
             padding: 12px 10px;
             background: white;
@@ -167,10 +169,13 @@
         }
         
         .wine-description {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: #666;
             font-weight: 400;
             font-style: italic;
+            line-height: 1.3;
+            max-height: none; /* Remove any height restrictions */
+            overflow: visible;
         }
         
         .wine-checkbox {
