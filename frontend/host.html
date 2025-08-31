@@ -325,6 +325,7 @@
             }
         }
     </style>
+    <script src="build-config.js"></script>
 </head>
 <body>
     <div class="container">
@@ -510,12 +511,115 @@
             }
         }
         
-        async function selectGroup(groupId) {
-            console.log('🎯 Selecting group:', groupId);
-            currentGroupId = groupId;
-            await loadGroupDetails(groupId);
+        async function selectGroup(groupName, isSubmitted) {
+            console.log('🎯 Selecting group:', groupName, 'submitted:', isSubmitted);
+            
+            try {
+                // Use config API base
+                const apiBase = CONFIG ? CONFIG.apiBase : (window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://wtm-production.up.railway.app');
+                
+                // First get all groups to find the right one
+                const groupsResponse = await fetch(`${apiBase}/api/groups`);
+                if (!groupsResponse.ok) {
+                    throw new Error(`Groups API returned ${groupsResponse.status}`);
+                }
+                
+                const groups = await groupsResponse.json();
+                console.log('📋 Available groups:', groups);
+                
+                const group = groups.find(g => g.name === groupName);
+                if (!group) {
+                    console.error('❌ Group not found:', groupName);
+                    displayError(`Group "${groupName}" not found`);
+                    return;
+                }
+                
+                console.log('✅ Found group:', group);
+                
+                // Try multiple approaches to get the order
+                let order = null;
+                const attempts = [
+                    group.orderId,                                           // Direct order ID
+                    group.id,                                               // Group ID  
+                    groupName.toLowerCase().replace(/[^a-z0-9]/g, '_')     // Normalized name
+                ];
+                
+                for (const identifier of attempts) {
+                    if (!identifier) continue;
+                    
+                    console.log('🔍 Trying identifier:', identifier);
+                    
+                    try {
+                        const orderResponse = await fetch(`${apiBase}/api/orders/${identifier}`);
+                        if (orderResponse.ok) {
+                            const orderData = await orderResponse.json();
+                            if (!orderData.error) {
+                                order = orderData;
+                                console.log('✅ Found order with identifier:', identifier);
+                                break;
+                            }
+                        } else {
+                            console.log('❌ No order found with identifier:', identifier, 'Status:', orderResponse.status);
+                        }
+                    } catch (err) {
+                        console.log('⚠️  Error fetching with identifier:', identifier, err.message);
+                    }
+                }
+                
+                if (order && !order.error) {
+                    console.log('📤 Displaying order:', order.groupName);
+                    displayGroupData(order);
+                    showGroupDetailsView();
+                } else {
+                    console.error('❌ Could not retrieve order for group:', groupName);
+                    
+                    // Enhanced error display with debug info
+                    const debugInfo = {
+                        groupName: groupName,
+                        groupId: group.id,
+                        orderId: group.orderId,
+                        attempts: attempts,
+                        apiBase: apiBase
+                    };
+                    
+                    if (CONFIG && CONFIG.serverSaving) {
+                        displayError(`Debug Info for "${groupName}":\n${JSON.stringify(debugInfo, null, 2)}`);
+                    } else {
+                        displayError(`Unable to load details for "${groupName}". Please try refreshing the page.`);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('💥 Error in selectGroup:', error);
+                displayError(`Connection error: ${error.message}`);
+            }
         }
         
+        function displayError(message) {
+            const content = document.getElementById('hostContent');
+            if (!content) {
+                console.error('❌ hostContent element not found');
+                return;
+            }
+            
+            content.innerHTML = `
+                <div style="padding: 20px; background: #f8d7da; border: 1px solid #f5c6cb; 
+                            border-radius: 8px; color: #721c24; margin: 20px;">
+                    <h3>⚠️ Error Loading Group</h3>
+                    <pre style="white-space: pre-wrap; font-family: monospace; font-size: 12px; 
+                                background: rgba(255,255,255,0.5); padding: 10px; border-radius: 4px; 
+                                margin: 10px 0;">${message}</pre>
+                    <button onclick="showGroupsView()" style="margin-top: 10px; padding: 8px 16px; 
+                            background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        ← Back to Groups
+                    </button>
+                    <button onclick="location.reload()" style="margin-top: 10px; margin-left: 10px; padding: 8px 16px; 
+                            background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🔄 Refresh Page
+                    </button>
+                </div>
+            `;
+}
         async function loadGroupDetails(groupId) {
             console.log('📡 Loading group details for:', groupId);
             setRefreshButton(true);

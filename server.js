@@ -1,28 +1,16 @@
 const http = require('http');
 const url = require('url');
-const { Pool } = require('pg');
+const querystring = require('querystring');
 
-// Database connection with Railway environment variables
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.DATABASE_PUBLIC_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Enhanced in-memory storage using Maps for better performance
+let orders = new Map();
+let groups = new Map();
 
-// Test database connection
-pool.connect()
-  .then(() => console.log('✅ Database connected successfully'))
-  .catch(err => console.error('❌ Database connection error:', err));
-
-// In-memory storage for backup (in case DB fails)
-let orders = [];
-let groups = [];
-
-// CORS headers - Fixed for Railway
+// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Content-Type': 'application/json'
 };
 
@@ -51,276 +39,298 @@ function parseBody(req) {
   });
 }
 
-// Initialize database tables
-async function initDatabase() {
-  try {
-    // Create orders table if not exists
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS orders (
-        id SERIAL PRIMARY KEY,
-        group_name VARCHAR(255) NOT NULL,
-        guest_names JSONB,
-        selections JSONB,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        status VARCHAR(50) DEFAULT 'active'
-      )
-    `);
-
-    // Create groups table if not exists
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS groups (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        status VARCHAR(50) DEFAULT 'active',
-        guest_count INTEGER DEFAULT 0
-      )
-    `);
-
-    console.log('✅ Database tables initialized');
-  } catch (error) {
-    console.error('❌ Database initialization error:', error);
-  }
-}
-
 const server = http.createServer(async (req, res) => {
-  // Add CORS headers to every response
-  Object.entries(corsHeaders).forEach(([key, value]) => {
-    res.setHeader(key, value);
-  });
-  
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200);
-    res.end();
-    return;
-  }
+  // Handle CORS
+  if (handleCors(req, res)) return;
   
   const parsedUrl = url.parse(req.url, true);
   const path = parsedUrl.pathname;
   const method = req.method;
   
+  res.writeHead(200, corsHeaders);
+  
   try {
     // Health check endpoint
     if (path === '/health' && method === 'GET') {
-      const dbTest = await pool.query('SELECT NOW()').catch(() => null);
-      res.writeHead(200);
-      res.end(JSON.stringify({ 
-        status: 'healthy', 
+      const health = {
+        status: 'healthy',
         timestamp: new Date().toISOString(),
-        database: dbTest ? 'connected' : 'disconnected',
-        orders: orders.length,
-        groups: groups.length,
-        environment: process.env.NODE_ENV || 'development'
-      }));
+        orders: orders.size,
+        groups: groups.size,
+        uptime: process.uptime(),
+        memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+        endpoints: {
+          'POST /api/orders': 'Submit wine tasting order',
+          'GET /api/groups': 'List all groups',
+          'GET /api/orders/:id': 'Get specific order',
+          'GET /api/wines': 'Get wine list',
+          'GET /api/debug': 'Debug information',
+          'GET /health': 'Health check'
+        }
+      };
+      res.end(JSON.stringify(health, null, 2));
       
     // Submit new order
     } else if (path === '/api/orders' && method === 'POST') {
       const body = await parseBody(req);
-      console.log('📥 Received order:', body);
       
-      try {
-        // Insert into database
-        const result = await pool.query(`
-          INSERT INTO orders (group_name, guest_names, selections, status) 
-          VALUES ($1, $2, $3, 'active') 
-          RETURNING id, created_at
-        `, [body.groupName, JSON.stringify(body.guestNames), JSON.stringify(body.selections)]);
-        
-        const orderId = result.rows[0].id;
-        const timestamp = result.rows[0].created_at;
-        
-        // Also add to groups table
-        await pool.query(`
-          INSERT INTO groups (name, guest_count, status) 
-          VALUES ($1, $2, 'active') 
-          ON CONFLICT (name) DO UPDATE SET 
-            guest_count = $2,
-            created_at = CURRENT_TIMESTAMP
-        `, [body.groupName, Object.keys(body.guestNames || {}).length]);
-        
-        console.log('✅ Order saved to database:', orderId);
-        res.end(JSON.stringify({ success: true, orderId, timestamp }));
-        
-      } catch (dbError) {
-        console.error('❌ Database error, using memory storage:', dbError);
-        
-        // Fallback to memory storage
-        const order = {
-          id: Date.now().toString(),
-          groupName: body.groupName,
-          guestNames: body.guestNames,
-          selections: body.selections,
-          timestamp: new Date().toISOString(),
-          status: 'active'
-        };
-        orders.push(order);
-        
-        if (!groups.find(g => g.name === body.groupName)) {
-          groups.push({
-            name: body.groupName,
-            timestamp: new Date().toLocaleString(),
-            status: 'active',
-            guestCount: Object.keys(body.guestNames || {}).length
-          });
-        }
-        
-        res.end(JSON.stringify({ success: true, orderId: order.id, fallback: true }));
-      }
+      // Generate consistent IDs
+      const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const groupId = body.groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
       
-    // Get all orders (missing route)
-    } else if (path === '/api/orders' && method === 'GET') {
-      try {
-        const result = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
-        res.end(JSON.stringify(result.rows));
-      } catch (dbError) {
-        console.error('❌ Database error, using memory storage:', dbError);
-        res.end(JSON.stringify(orders));
-      }
+      console.log('📝 Creating order:', orderId, 'for group:', body.groupName);
+      
+      const order = {
+        id: orderId,
+        groupId: groupId,
+        groupName: body.groupName,
+        guestNames: body.guestNames || {},
+        selections: body.selections || {},
+        timestamp: new Date().toISOString(),
+        status: 'active',
+        submittedAt: new Date().toLocaleString('fr-CA', {
+          timeZone: 'America/Montreal',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      };
+      
+      // Store order
+      orders.set(orderId, order);
+      
+      // Create/update group
+      const group = {
+        id: groupId,
+        name: body.groupName,
+        orderId: orderId,
+        timestamp: order.submittedAt,
+        status: 'active',
+        guestCount: Object.keys(body.guestNames || {}).filter(key => body.guestNames[key]).length,
+        wineCount: Object.values(body.selections || {}).reduce((total, wines) => total + wines.length, 0)
+      };
+      
+      groups.set(groupId, group);
+      
+      console.log('✅ Order created successfully');
+      console.log('📊 Current orders:', orders.size, 'groups:', groups.size);
+      
+      res.end(JSON.stringify({ 
+        success: true, 
+        orderId: orderId,
+        groupId: groupId,
+        message: 'Order submitted successfully' 
+      }));
       
     // Get all groups
     } else if (path === '/api/groups' && method === 'GET') {
-      try {
-        const result = await pool.query('SELECT * FROM groups ORDER BY created_at DESC');
-        res.end(JSON.stringify(result.rows));
-      } catch (dbError) {
-        console.error('❌ Database error, using memory storage:', dbError);
-        res.end(JSON.stringify(groups));
-      }
+      console.log('📋 Fetching groups, count:', groups.size);
+      
+      const groupsArray = Array.from(groups.values()).map(group => ({
+        ...group,
+        hasOrder: orders.has(group.orderId),
+        lastUpdate: new Date().toLocaleString('fr-CA', {
+          timeZone: 'America/Montreal',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }));
+      
+      console.log('📤 Returning groups:', groupsArray.length);
+      res.end(JSON.stringify(groupsArray));
       
     // Get specific order
     } else if (path.startsWith('/api/orders/') && method === 'GET') {
-      const orderId = path.split('/')[3];
+      const pathParts = path.split('/');
+      const identifier = pathParts[3];
       
-      try {
-        const result = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
-        if (result.rows.length > 0) {
-          res.end(JSON.stringify(result.rows[0]));
+      console.log('🔍 Looking for order with identifier:', identifier);
+      console.log('📦 Available orders:', Array.from(orders.keys()));
+      
+      let order = null;
+      
+      // Try direct order ID lookup first
+      if (orders.has(identifier)) {
+        order = orders.get(identifier);
+        console.log('✅ Found order by ID:', identifier);
+      } else {
+        // Try finding by group ID
+        const group = groups.get(identifier);
+        if (group && group.orderId && orders.has(group.orderId)) {
+          order = orders.get(group.orderId);
+          console.log('✅ Found order by group ID:', identifier, '-> order:', group.orderId);
         } else {
-          res.end(JSON.stringify({ error: 'Order not found' }));
+          // Try finding by group name (fallback)
+          for (let [orderId, orderData] of orders) {
+            if (orderData.groupName.toLowerCase().replace(/[^a-z0-9]/g, '_') === identifier) {
+              order = orderData;
+              console.log('✅ Found order by group name match:', identifier);
+              break;
+            }
+          }
         }
-      } catch (dbError) {
-        console.error('❌ Database error, using memory storage:', dbError);
-        const order = orders.find(o => o.id === orderId);
-        res.end(JSON.stringify(order || { error: 'Order not found' }));
       }
       
-    // Update wine status
-    } else if (path.startsWith('/api/orders/') && path.includes('/status') && method === 'PUT') {
+      if (order) {
+        console.log('📤 Returning order for:', order.groupName);
+        res.end(JSON.stringify(order));
+      } else {
+        console.log('❌ Order not found for identifier:', identifier);
+        res.writeHead(404, corsHeaders);
+        res.end(JSON.stringify({ 
+          error: 'Order not found',
+          identifier: identifier,
+          availableOrders: Array.from(orders.keys()),
+          availableGroups: Array.from(groups.keys()),
+          debug: true
+        }));
+      }
+      
+    // Update order status (for wine status changes)
+    } else if (path.startsWith('/api/orders/') && method === 'PUT') {
       const pathParts = path.split('/');
-      const orderId = pathParts[3];
+      const identifier = pathParts[3];
       const body = await parseBody(req);
       
-      try {
-        // Get current order
-        const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
-        if (orderResult.rows.length === 0) {
-          res.writeHead(404, corsHeaders);
-          res.end(JSON.stringify({ error: 'Order not found' }));
-          return;
+      console.log('🔄 Updating order:', identifier, body);
+      
+      let order = orders.get(identifier);
+      if (!order) {
+        // Try finding by group ID
+        const group = groups.get(identifier);
+        if (group && group.orderId) {
+          order = orders.get(group.orderId);
         }
-        
-        const currentOrder = orderResult.rows[0];
-        const selections = currentOrder.selections;
-        
-        // Update the specific wine status
-        if (selections[body.guest] && selections[body.guest][body.wineIndex]) {
-          // Fix the double-click issue: normalize status
-          const currentStatus = selections[body.guest][body.wineIndex].status;
-          const newStatus = (currentStatus === 'non-servi' || currentStatus === 'pending') ? 'servi' : 'non-servi';
-          selections[body.guest][body.wineIndex].status = newStatus;
-          
-          // Update in database
-          await pool.query(
-            'UPDATE orders SET selections = $1 WHERE id = $2',
-            [JSON.stringify(selections), orderId]
-          );
-          
-          console.log(`✅ Status updated: ${body.guest} wine ${body.wineIndex} -> ${newStatus}`);
-          res.end(JSON.stringify({ success: true, newStatus }));
-        } else {
-          res.writeHead(400, corsHeaders);
-          res.end(JSON.stringify({ error: 'Invalid wine selection' }));
-        }
-        
-      } catch (dbError) {
-        console.error('❌ Status update error:', dbError);
-        res.writeHead(500, corsHeaders);
-        res.end(JSON.stringify({ error: 'Status update failed' }));
       }
       
-    // Get wines list
+      if (order) {
+        // Update wine status if provided
+        if (body.guestId && body.wineIndex !== undefined && body.status) {
+          if (order.selections[body.guestId] && order.selections[body.guestId][body.wineIndex]) {
+            order.selections[body.guestId][body.wineIndex].status = body.status;
+            console.log('✅ Updated wine status');
+          }
+        }
+        
+        res.end(JSON.stringify({ success: true, order: order }));
+      } else {
+        res.writeHead(404, corsHeaders);
+        res.end(JSON.stringify({ error: 'Order not found' }));
+      }
+      
+    // Get wine list
     } else if (path === '/api/wines' && method === 'GET') {
       const wines = [
-        { id: 1, name: "Ze Flying Pig - Cidre", category: "Cidre" },
-        { id: 2, name: "Petnat Chardonnay - Bulles", category: "Sparkling" },
-        { id: 3, name: "Blanc - Bio", category: "White" },
-        { id: 4, name: "Gris de Gris", category: "Rosé" },
-        { id: 5, name: "Rosé Plamplemousse", category: "Rosé" },
-        { id: 6, name: "Premier Pas - Bio", category: "Red" },
-        { id: 7, name: "Hélium", category: "Red" },
-        { id: 8, name: "Rouge Bourbon", category: "Red" },
-        { id: 9, name: "Rouge Cognac", category: "Red" },
-        { id: 10, name: "Le Chat Noir", category: "Fortified" }
+        { id: 1, name: "Ze Flying Pig - Cidre", category: "Cidre", description: "Cidre brut mousseux issu de nos pommes McIntosh" },
+        { id: 2, name: "Petnat Chardonnay - Bulles", category: "Bulles", description: "Pétillant naturel 100% Chardonnay, certifié biologique" },
+        { id: 3, name: "Blanc - Bio", category: "Blanc", description: "Vin à la robe claire de reflets jaunâtres présentant un nez frais" },
+        { id: 4, name: "Gris de Gris", category: "Rosé", description: "Rosé présentant des notes typiques de pamplemousse" },
+        { id: 5, name: "Rosé Plamplemousse", category: "Rosé", description: "Robe de couleur pêche, nez présentant des arômes frais" },
+        { id: 6, name: "Premier Pas - Bio", category: "Rouge", description: "Vin rouge fermenté en grappes entières" },
+        { id: 7, name: "Hélium", category: "Rouge", description: "Chaleureux, équilibré, aromatique et souple" },
+        { id: 8, name: "Rouge Bourbon", category: "Rouge", description: "Premier vin rouge élevé en fûts de Bourbon au Québec" },
+        { id: 9, name: "Rouge Cognac", category: "Rouge", description: "Premier vin rouge élevé en fûts de Cognac au Québec" },
+        { id: 10, name: "Le Chat Noir", category: "Fortifié", description: "Premier vin de paille fortifié au Québec" }
       ];
       res.end(JSON.stringify(wines));
+      
+    // Debug endpoint
+    } else if (path === '/api/debug' && method === 'GET') {
+      const debug = {
+        timestamp: new Date().toISOString(),
+        server: {
+          uptime: Math.round(process.uptime()),
+          memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+          nodeVersion: process.version
+        },
+        orders: {
+          count: orders.size,
+          keys: Array.from(orders.keys()),
+          sample: orders.size > 0 ? Array.from(orders.values())[0] : null
+        },
+        groups: {
+          count: groups.size,
+          keys: Array.from(groups.keys()),
+          data: Array.from(groups.values())
+        }
+      };
+      
+      console.log('🐛 Debug endpoint called');
+      res.end(JSON.stringify(debug, null, 2));
+      
+    // API root
+    } else if (path === '/api' && method === 'GET') {
+      res.end(JSON.stringify({
+        message: 'Wine Tasting Management API',
+        version: '1.0.1',
+        status: 'operational',
+        endpoints: [
+          'GET /health - Health check',
+          'POST /api/orders - Submit order',
+          'GET /api/groups - List groups',
+          'GET /api/orders/:id - Get order',
+          'PUT /api/orders/:id - Update order',
+          'GET /api/wines - Wine list',
+          'GET /api/debug - Debug info'
+        ]
+      }));
       
     // Root endpoint
     } else if (path === '/' && method === 'GET') {
       res.end(JSON.stringify({
-        message: '🍷 Wine Tasting Management API',
-        version: '1.0.0',
-        environment: process.env.NODE_ENV || 'development',
-        endpoints: [
-          'GET /health',
-          'POST /api/orders',
-          'GET /api/groups', 
-          'GET /api/orders/:id',
-          'PUT /api/orders/:id/status',
-          'GET /api/wines'
-        ]
+        message: '🍷 Wine Tasting Management System',
+        version: '1.0.1',
+        status: 'online',
+        time: new Date().toLocaleString('fr-CA', { timeZone: 'America/Montreal' }),
+        orders: orders.size,
+        groups: groups.size
       }));
       
     } else {
       res.writeHead(404, corsHeaders);
-      res.end(JSON.stringify({ error: 'Route not found' }));
+      res.end(JSON.stringify({ 
+        error: 'Route not found',
+        path: path,
+        method: method,
+        availableEndpoints: ['/health', '/api', '/api/orders', '/api/groups', '/api/wines', '/api/debug']
+      }));
     }
     
   } catch (error) {
-    console.error('❌ Server error:', error);
+    console.error('💥 Server error:', error);
     res.writeHead(500, corsHeaders);
-    res.end(JSON.stringify({ error: 'Internal server error', details: error.message }));
+    res.end(JSON.stringify({ 
+      error: 'Internal server error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    }));
   }
 });
 
-// Railway requires listening on 0.0.0.0, not just localhost
 const PORT = process.env.PORT || 3001;
-const HOST = '0.0.0.0';
-
-server.listen(PORT, HOST, async () => {
-  console.log(`🍷 Wine Tasting API running on http://${HOST}:${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🗄️  Database URL: ${process.env.DATABASE_URL ? 'configured' : 'missing'}`);
-  
-  // Initialize database tables
-  await initDatabase();
+server.listen(PORT, () => {
+  console.log(`🍷 Wine Tasting Management API`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📡 Health check: http://localhost:${PORT}/health`);
+  console.log(`🐛 Debug info: http://localhost:${PORT}/api/debug`);
+  console.log(`⏰ Started: ${new Date().toLocaleString('fr-CA', { timeZone: 'America/Montreal' })}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('🛑 Server shutting down...');
+  console.log('🛑 Received SIGTERM, shutting down gracefully...');
   server.close(() => {
-    pool.end();
-    console.log('✅ Server and database connections closed');
+    console.log('✅ Server closed');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('🛑 Server shutting down...');
+  console.log('🛑 Received SIGINT, shutting down gracefully...');
   server.close(() => {
-    pool.end();
-    console.log('✅ Server and database connections closed');
+    console.log('✅ Server closed');
     process.exit(0);
   });
 });
