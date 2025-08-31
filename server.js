@@ -61,7 +61,7 @@ async function initDatabase() {
         group_name VARCHAR(255) NOT NULL,
         guest_names JSONB,
         selections JSONB,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status VARCHAR(50) DEFAULT 'active'
       )
     `);
@@ -71,7 +71,7 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS groups (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status VARCHAR(50) DEFAULT 'active',
         guest_count INTEGER DEFAULT 0
       )
@@ -124,11 +124,11 @@ const server = http.createServer(async (req, res) => {
         const result = await pool.query(`
           INSERT INTO orders (group_name, guest_names, selections, status) 
           VALUES ($1, $2, $3, 'active') 
-          RETURNING id, timestamp
+          RETURNING id, created_at
         `, [body.groupName, JSON.stringify(body.guestNames), JSON.stringify(body.selections)]);
         
         const orderId = result.rows[0].id;
-        const timestamp = result.rows[0].timestamp;
+        const timestamp = result.rows[0].created_at;
         
         // Also add to groups table
         await pool.query(`
@@ -136,7 +136,7 @@ const server = http.createServer(async (req, res) => {
           VALUES ($1, $2, 'active') 
           ON CONFLICT (name) DO UPDATE SET 
             guest_count = $2,
-            timestamp = CURRENT_TIMESTAMP
+            created_at = CURRENT_TIMESTAMP
         `, [body.groupName, Object.keys(body.guestNames || {}).length]);
         
         console.log('✅ Order saved to database:', orderId);
