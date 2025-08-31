@@ -17,11 +17,12 @@ pool.connect()
 let orders = [];
 let groups = [];
 
-// CORS headers
+// CORS headers - Fixed for Railway
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+  'Access-Control-Max-Age': '86400',
   'Content-Type': 'application/json'
 };
 
@@ -83,19 +84,27 @@ async function initDatabase() {
 }
 
 const server = http.createServer(async (req, res) => {
-  // Handle CORS
-  if (handleCors(req, res)) return;
+  // Add CORS headers to every response
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    res.setHeader(key, value);
+  });
+  
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
   
   const parsedUrl = url.parse(req.url, true);
   const path = parsedUrl.pathname;
   const method = req.method;
   
-  res.writeHead(200, corsHeaders);
-  
   try {
     // Health check endpoint
     if (path === '/health' && method === 'GET') {
       const dbTest = await pool.query('SELECT NOW()').catch(() => null);
+      res.writeHead(200);
       res.end(JSON.stringify({ 
         status: 'healthy', 
         timestamp: new Date().toISOString(),
@@ -234,15 +243,15 @@ const server = http.createServer(async (req, res) => {
     } else if (path === '/api/wines' && method === 'GET') {
       const wines = [
         { id: 1, name: "Ze Flying Pig - Cidre", category: "Cidre" },
-        { id: 2, name: "Petnat Chardonnay - Bulles", category: "bulles" },
-        { id: 3, name: "Blanc - Bio", category: "blanc" },
+        { id: 2, name: "Petnat Chardonnay - Bulles", category: "Sparkling" },
+        { id: 3, name: "Blanc - Bio", category: "White" },
         { id: 4, name: "Gris de Gris", category: "Rosé" },
         { id: 5, name: "Rosé Plamplemousse", category: "Rosé" },
-        { id: 6, name: "Premier Pas - Bio", category: "Rouge" },
-        { id: 7, name: "Hélium", category: "Rouge" },
-        { id: 8, name: "Rouge Bourbon", category: "Rouge" },
-        { id: 9, name: "Rouge Cognac", category: "Rouge" },
-        { id: 10, name: "Le Chat Noir", category: "Fortifié" }
+        { id: 6, name: "Premier Pas - Bio", category: "Red" },
+        { id: 7, name: "Hélium", category: "Red" },
+        { id: 8, name: "Rouge Bourbon", category: "Red" },
+        { id: 9, name: "Rouge Cognac", category: "Red" },
+        { id: 10, name: "Le Chat Noir", category: "Fortified" }
       ];
       res.end(JSON.stringify(wines));
       
