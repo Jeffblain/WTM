@@ -168,10 +168,20 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ success: true, orderId: order.id, fallback: true }));
       }
       
+    // Get all orders (missing route)
+    } else if (path === '/api/orders' && method === 'GET') {
+      try {
+        const result = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
+        res.end(JSON.stringify(result.rows));
+      } catch (dbError) {
+        console.error('❌ Database error, using memory storage:', dbError);
+        res.end(JSON.stringify(orders));
+      }
+      
     // Get all groups
     } else if (path === '/api/groups' && method === 'GET') {
       try {
-        const result = await pool.query('SELECT * FROM groups ORDER BY timestamp DESC');
+        const result = await pool.query('SELECT * FROM groups ORDER BY created_at DESC');
         res.end(JSON.stringify(result.rows));
       } catch (dbError) {
         console.error('❌ Database error, using memory storage:', dbError);
