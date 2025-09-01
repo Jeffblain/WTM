@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Inspector - WTM</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .output {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-family: monospace;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .section {
+            margin: 20px 0;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        h2 {
+            color: #ffff00;
+            margin-top: 0;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+            margin: 5px;
+        }
+        .connected {
+            background: #28a745;
+            color: white;
+        }
+        .error {
+            background: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Railway Database Inspector</h1>
+        
+        <div class="section">
+            <h2>Connection Status</h2>
+            <div id="connectionStatus" class="status">Checking...</div>
+            <button onclick="testConnection()">Test Connection</button>
+        </div>
+
+        <div class="section">
+            <h2>API Endpoints</h2>
+            <button onclick="inspectEndpoint('/health')">Health Check</button>
+            <button onclick="inspectEndpoint('/api/groups')">Groups</button>
+            <button onclick="inspectEndpoint('/api/wines')">Wines</button>
+            <button onclick="inspectEndpoint('/api/orders')">Orders (if exists)</button>
+        </div>
+
+        <div class="section">
+            <h2>Data Inspection</h2>
+            <div id="dataOutput" class="output">Click buttons above to inspect your Railway database...</div>
+        </div>
+
+        <div class="section">
+            <h2>Session ID Generator Test</h2>
+            <button onclick="generateSessionIds()">Generate Sample Session IDs</button>
+            <div id="sessionOutput" class="output"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://wtm-production.up.railway.app';
+        
+        async function testConnection() {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = 'Testing...';
+            statusEl.className = 'status';
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                statusEl.textContent = `✅ Connected - ${data.status}`;
+                statusEl.className = 'status connected';
+                
+                document.getElementById('dataOutput').textContent = 
+                    `Health Check Response:\n${JSON.stringify(data, null, 2)}`;
+                    
+            } catch (error) {
+                statusEl.textContent = `❌ Connection Failed - ${error.message}`;
+                statusEl.className = 'status error';
+                
+                document.getElementById('dataOutput').textContent = 
+                    `Connection Error:\n${error.stack}`;
+            }
+        }
+        
+        async function inspectEndpoint(endpoint) {
+            const outputEl = document.getElementById('dataOutput');
+            outputEl.textContent = `Fetching ${endpoint}...`;
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                const data = await response.json();
+                
+                outputEl.textContent = 
+                    `Endpoint: ${endpoint}\n` +
+                    `Status: ${response.status}\n` +
+                    `Response:\n${JSON.stringify(data, null, 2)}`;
+                    
+            } catch (error) {
+                outputEl.textContent = 
+                    `Error fetching ${endpoint}:\n${error.message}\n\n${error.stack}`;
+            }
+        }
+        
+        function generateSessionIds() {
+            const outputEl = document.getElementById('sessionOutput');
+            let output = 'Sample Session IDs (collision-resistant):\n\n';
+            
+            for (let i = 0; i < 10; i++) {
+                const sessionId = generateSessionId();
+                output += `${sessionId}\n`;
+            }
+            
+            output += '\nSession ID Format:\n';
+            output += 'ABC + YYYYMMDDHHMMSS + random3digits\n';
+            output += 'Example: ABC20250901143025847\n';
+            output += 'Length: 20 characters\n';
+            output += 'Collision probability: ~1 in 1000 per second\n';
+            
+            outputEl.textContent = output;
+        }
+        
+        function generateSessionId() {
+            const now = new Date();
+            const timestamp = now.getFullYear().toString() +
+                            (now.getMonth() + 1).toString().padStart(2, '0') +
+                            now.getDate().toString().padStart(2, '0') +
+                            now.getHours().toString().padStart(2, '0') +
+                            now.getMinutes().toString().padStart(2, '0') +
+                            now.getSeconds().toString().padStart(2, '0');
+            
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            
+            return `ABC${timestamp}${random}`;
+        }
+        
+        // Auto-test connection on load
+        document.addEventListener('DOMContentLoaded', testConnection);
+    </script>
+</body>
+</html>

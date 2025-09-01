@@ -512,65 +512,50 @@
             }
         }
         
-        async function selectGroup(groupName, isSubmitted) {
-            console.log('🎯 Selecting group:', groupName, 'submitted:', isSubmitted);
+        async function selectGroup(groupName) {
+            console.log('🎯 Selecting group:', groupName);
             
             try {
-                const apiBase = 'https://wtm-production.up.railway.app';
-                
-                // Normalize the group name to match server format
-                const normalizedName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                console.log('🔄 Normalized name:', normalizedName);
-                
-                // Try both the original name and normalized name
-                const attempts = [
-                    groupName,           // Original display name
-                    normalizedName       // Server-normalized name
-                ];
-                
-                let order = null;
-                for (const identifier of attempts) {
-                    console.log('🔍 Trying identifier:', identifier);
-                    
-                    try {
-                        const orderResponse = await fetch(`${apiBase}/api/orders/${identifier}`);
-                        if (orderResponse.ok) {
-                            const orderData = await orderResponse.json();
-                            if (!orderData.error) {
-                                order = orderData;
-                                console.log('✅ Found order with identifier:', identifier);
-                                break;
-                            }
-                        }
-                    } catch (err) {
-                        console.log('⚠️ Error with identifier:', identifier, err.message);
-                    }
+                const response = await fetch(`${API_BASE}/api/orders/${groupName}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
                 
-                if (order && !order.error) {
-                    console.log('📤 Displaying order:', order.groupName);
-                    displayGroupData(order);
+                const orderData = await response.json();
+                console.log('📦 Order data received:', orderData);
+                
+                if (orderData && !orderData.error) {
+                    currentGroupData = orderData;
+                    displayGroupData(orderData);
                     showGroupDetailsView();
                 } else {
-                    console.error('❌ Could not retrieve order for group:', groupName);
-                    displayError(`Unable to load details for "${groupName}". Available in server: test_group_day_3_7`);
+                    console.error('❌ Order data error:', orderData);
+                    showError(`Groupe non trouvé: ${groupName}`);
                 }
                 
             } catch (error) {
-                console.error('💥 Error in selectGroup:', error);
-                displayError(`Connection error: ${error.message}`);
+                console.error('💥 Error loading group:', error);
+                showError(`Erreur de connexion: ${error.message}`);
             }
         }
         
         function displayGroupData(order) {
-            currentGroupData = order; // Store for status updates
+            currentGroupData = order;
             const content = document.getElementById('hostContent');
             if (!content) {
                 console.error('hostContent element not found');
                 return;
             }
             
-            let html = `
+            // Check for plateau selections first
+            let html = '';
+            if (order.plateauSelections && order.plateauSelections.length > 0) {
+                html += `<div style="background: #e7f3ff; padding: 10px; margin: 10px 0; border-radius: 8px;">
+                    <strong>🧀 Plateaux commandés:</strong> ${order.plateauSelections.join(', ')}
+                </div>`;
+            }
+            
+            html += `
                 <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
                     <h2>🍷 Groupe: ${order.groupName}</h2>
                     <p><strong>Soumise:</strong> ${order.submittedAt || order.timestamp}</p>
@@ -578,7 +563,7 @@
             `;
             
             // Loop through each guest's selections
-            for (let guest = 1; guest <= 4; guest++) {
+            for (let guest = 1; guest <= 8; guest++) {
                 const guestKey = `guest${guest}`;
                 const guestSelections = order.selections[guestKey] || [];
                 
@@ -612,10 +597,9 @@
             }
             
             content.innerHTML = html;
-}
+        }
 
-        function cycleStatus(guestKey, wineIndex) {
-            // You'll need to track current group data globally
+        async function cycleStatus(guestKey, wineIndex) {
             if (!currentGroupData) {
                 console.error('No group data available');
                 return;
@@ -628,13 +612,37 @@
             const statuses = ['non-servi', 'servi'];
             const currentIndex = statuses.indexOf(wine.status || 'non-servi');
             const nextIndex = (currentIndex + 1) % statuses.length;
-            wine.status = statuses[nextIndex];
+            const newStatus = statuses[nextIndex];
             
-            // Update display
-            displayGroupData(currentGroupData);
-            
-            // Optional: Send update to server
-            console.log(`Updated ${guestKey} wine ${wineIndex} to ${wine.status}`);
+            try {
+                // Update display immediately for responsiveness
+                wine.status = newStatus;
+                displayGroupData(currentGroupData);
+                
+                // Save to backend
+                const response = await fetch(`${API_BASE}/api/orders/${currentGroupData.groupName}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        guest: guestKey,
+                        wineIndex: wineIndex,
+                        newStatus: newStatus
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with ${response.status}`);
+                }
+                
+                console.log(`Status updated: ${guestKey} wine ${wineIndex} to ${newStatus}`);
+                
+            } catch (error) {
+                console.error('Failed to update status on server:', error);
+                // Revert local change if server update fails
+                wine.status = statuses[currentIndex];
+                displayGroupData(currentGroupData);
+                alert('Erreur de sauvegarde - changement annulé');
+            }
         }
 
         async function populateGroups() {
