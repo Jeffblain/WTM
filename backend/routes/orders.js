@@ -14,11 +14,19 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST new order
+// POST new order - CRASH-PROOF VERSION
 router.post('/', async (req, res) => {
+  // Prevent double responses
+  if (res.headersSent) {
+    console.log('Headers already sent, skipping response');
+    return;
+  }
+  
   try {
     const { groupName, guestNames, selections, plateauSelections, wineryId } = req.body;
     const orderId = uuidv4();
+    
+    console.log('Creating order for:', groupName);
     
     const query = `
       INSERT INTO orders (id, group_name, guest_names, selections, plateau_selections, winery_id, status, created_at)
@@ -38,14 +46,17 @@ router.post('/', async (req, res) => {
     
     const result = await db.query(query, values);
     
-    res.status(201).json({
+    // ONLY send response once
+    return res.status(201).json({
       success: true,
-      orderId: result.rows[0].id,
-      order: result.rows[0]
+      orderId: result.rows[0].id
     });
+    
   } catch (error) {
     console.error('Error creating order:', error);
-    res.status(500).json({ error: 'Failed to create order' });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Failed to create order' });
+    }
   }
 });
 
