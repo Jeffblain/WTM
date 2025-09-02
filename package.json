@@ -7,8 +7,9 @@
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
   },
+  
   "scripts": {
-    "start": "node server.js",
+    "start": "node backend/app.js",
     "dev": "nodemon server.js",
     "build": "echo 'No build step needed for Node.js server'",
     "test": "echo 'Tests not configured yet'"
