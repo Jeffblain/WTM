@@ -1,37 +1,39 @@
 {
   "name": "wine-tasting-management",
-  "version": "1.0.0",
-  "description": "Wine tasting management system for wineries",
-  "main": "server.js",
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  },
-  
+  "version": "1.1.0",
+  "description": "Wine Tasting Management Tool for Wineries",
+  "main": "backend/app.js",
   "scripts": {
     "start": "node backend/app.js",
-    "dev": "nodemon server.js",
-    "build": "echo 'No build step needed for Node.js server'",
-    "test": "echo 'Tests not configured yet'"
+    "dev": "NODE_ENV=development nodemon backend/app.js",
+    "test": "NODE_ENV=test node backend/app.js",
+    "prod": "NODE_ENV=production node backend/app.js",
+    "setup-db": "node backend/scripts/setup-database.js",
+    "clean-test": "NODE_ENV=test node backend/scripts/clean-test-data.js"
   },
   "dependencies": {
-    "pg": "^8.11.5"
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jeffblain/WTM"
   },
   "keywords": [
     "wine",
     "tasting",
     "management",
-    "postgresql",
-    "nodejs",
-    "railway"
+    "winery",
+    "quebec"
   ],
-  "author": "Jeff Blain Impaxx.ca",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Jeffblain/WTM.git"
-  }
+  "author": "Jeff & May",
+  "license": "MIT"
 }

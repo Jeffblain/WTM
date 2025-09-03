@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Votre Sélection - Vignoble le Chat Botté</title>
+    <title>Votre Sélection de Dégustation</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
@@ -34,430 +34,252 @@
             text-align: center;
         }
         
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-        
-        .success-banner {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-            padding: 20px 30px;
-            text-align: center;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-        
-        .view {
+        .content {
             padding: 30px;
         }
         
-        .session-info {
+        .group-info {
             background: #f8f9fa;
-            border-radius: 10px;
             padding: 20px;
-            margin-bottom: 20px;
-            border-left: 4px solid #007bff;
-        }
-        
-        .session-id {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #333;
-            margin-bottom: 5px;
-        }
-        
-        .session-timestamp {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        
-        .bookmark-info {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-            color: #856404;
+            border-radius: 10px;
+            margin-bottom: 30px;
             text-align: center;
         }
         
-        .guest-summary {
+        .guest-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #007bff;
+        }
+        
+        .guest-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .guest-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .guest-progress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .progress-bar {
+            width: 100px;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #28a745;
+            transition: width 0.3s;
+        }
+        
+        .wine-list {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .wine-item {
             background: white;
             border-radius: 8px;
             padding: 15px;
-            margin-bottom: 15px;
-            border-left: 4px solid #007bff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        .guest-title {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
         }
         
-        .guest-number {
-            font-weight: 700;
+        .wine-name {
+            font-weight: 500;
             color: #333;
-        }
-        
-        .guest-name-display {
-            font-weight: 500;
-            color: #007bff;
-            font-size: 1.1rem;
-        }
-        
-        .wine-service-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .wine-service-item:last-child {
-            border-bottom: none;
-        }
-        
-        .wine-service-name {
-            flex: 1;
-            font-weight: 500;
         }
         
         .status-badge {
-            padding: 4px 12px;
+            padding: 6px 12px;
             border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: 600;
+            font-size: 0.9rem;
+            font-weight: bold;
         }
         
-        .status-non-servi {
-            background: #ffcdcd;
-            color: #850404;
-            border: 1px solid #850404;
+        .status-badge.served {
+            background: #28a745;
+            color: white;
         }
         
-        .status-servi {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .status-badge.pending {
+            background: #ffc107;
+            color: #000;
         }
         
-        .plateau-section {
-            background: #e7f3ff;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #28a745;
-        }
-        
-        .plateau-title {
-            font-weight: 700;
-            color: #333;
-            margin-bottom: 8px;
-        }
-        
-        .email-section {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
+        .refresh-notice {
             text-align: center;
-            margin-top: 30px;
-            border: 2px dashed #dee2e6;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 20px;
         }
         
-        .email-btn {
-            background: linear-gradient(135deg, #007bff, #0056b3);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 1rem;
-            margin-top: 10px;
-            transition: all 0.3s;
+        .plateau-info {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
         }
         
-        .email-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .refresh-btn {
-            background: #17a2b8;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            margin-left: 10px;
-        }
-        
-        .refresh-btn:hover {
-            background: #138496;
-        }
-        
-        .message {
+        .loading {
             text-align: center;
             padding: 40px;
-            color: #6c757d;
-        }
-        
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            border: 1px solid #f5c6cb;
-        }
-        
-        @media (max-width: 768px) {
-            .guest-title {
-                flex-direction: column;
-                gap: 5px;
-                align-items: flex-start;
-            }
-            
-            .wine-service-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
-            }
+            color: #666;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Vignoble le Chat Botté</h1>
-            <p>Votre sélection de dégustation</p>
+            <h1>🍷 Votre Sélection</h1>
+            <p>Suivi de votre commande</p>
         </div>
         
-        <div class="success-banner">
-            Commande passée avec succès - Présentez-vous au comptoir pour votre première dégustation
-        </div>
-        
-        <div class="view">
-            <div class="session-info">
-                <div class="session-id" id="sessionId">Chargement...</div>
-                <div class="session-timestamp" id="sessionTimestamp">Soumise le...</div>
-                <button class="refresh-btn" onclick="refreshStatus()">Actualiser statut</button>
+        <div class="content">
+            <div class="loading" id="loading">
+                Chargement de votre commande...
             </div>
             
-            <div class="bookmark-info">
-                <strong>Marquez cette page!</strong><br>
-                Vous pouvez revenir sur cette page à tout moment en sauvegardant l'adresse dans vos favoris.
-            </div>
-            
-            <div id="plateauSection" style="display: none;">
-                <div class="plateau-section">
-                    <div class="plateau-title">Accompagnements commandés:</div>
-                    <div id="plateauList"></div>
+            <div id="orderContent" style="display: none;">
+                <div class="group-info" id="groupInfo">
+                    <!-- Group info will be loaded here -->
                 </div>
-            </div>
-            
-            <div id="guestSelections">
-                <!-- Guest selections will be populated here -->
-            </div>
-            
-            <div id="noData" class="message" style="display: none;">
-                <p>Aucune donnée de session trouvée.</p>
-                <p><a href="guest.html">Retourner au formulaire</a></p>
-            </div>
-            
-            <div id="errorMessage" class="error-message" style="display: none;">
-                <strong>Erreur:</strong>
-                <span id="errorText"></span>
-            </div>
-            
-            <div class="email-section">
-                <h3>Recevoir votre sélection par email</h3>
-                <p>Conservez un souvenir de votre dégustation</p>
-                <input type="email" id="guestEmail" placeholder="Entrez votre email..." 
-                       style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; 
-                              width: 250px; margin: 10px;">
-                <br>
-                <button class="email-btn" onclick="sendEmailSummary()">
-                    Envoyer ma sélection
-                </button>
+                
+                <div id="guestCards">
+                    <!-- Guest cards will be loaded here -->
+                </div>
+                
+                <div class="refresh-notice">
+                    🔄 Cette page se met à jour automatiquement toutes les 30 secondes
+                </div>
             </div>
         </div>
     </div>
     
     <script>
-        const API_BASE = window.location.hostname === 'localhost' 
+        const API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:3001' 
             : 'https://wtm-production.up.railway.app';
-            
-        let sessionData = null;
-        let sessionId = null;
         
-        document.addEventListener('DOMContentLoaded', function() {
-            loadSessionData();
-            
-            // Auto-refresh status every 30 seconds
-            setInterval(refreshStatus, 30000);
-        });
+        let currentOrder = null;
         
-        function loadSessionData() {
-            // Get session ID from URL parameter: session.html?id=ABC123_1342
+        async function loadOrderData() {
             const urlParams = new URLSearchParams(window.location.search);
-            sessionId = urlParams.get('id');
+            const groupName = urlParams.get('id');
             
-            if (!sessionId) {
-                showError('Aucun ID de session fourni');
+            if (!groupName) {
+                document.getElementById('loading').innerHTML = 
+                    'Erreur: Nom de groupe manquant dans l\'URL';
                 return;
             }
-            
-            // Try to load from localStorage first
-            const stored = localStorage.getItem(`session_${sessionId}`);
-            
-            if (stored) {
-                try {
-                    sessionData = JSON.parse(stored);
-                    displaySessionData();
-                    // Also try to get fresh data from server
-                    refreshFromServer();
-                } catch (e) {
-                    showError('Données de session corrompues');
-                }
-            } else {
-                // Try to load directly from server
-                refreshFromServer();
-            }
-        }
-        
-        async function refreshFromServer() {
-            if (!sessionId) return;
             
             try {
-                console.log('Refreshing data for session:', sessionId);
-                // Use the new group lookup endpoint
-                const response = await fetch(`${API_BASE}/api/orders/group/${sessionId}`);
+                const response = await fetch(`${API_URL}/api/orders/group/${encodeURIComponent(groupName)}`);
+                const data = await response.json();
                 
                 if (response.ok) {
-                    const serverData = await response.json();
-                    console.log('Server data received:', serverData);
-                    if (serverData && !serverData.error) {
-                        // Update local data with server data
-                        sessionData = serverData;
-                        displaySessionData();
-                        hideError();
-                        
-                        // Also update localStorage for offline access
-                        localStorage.setItem(`session_${sessionId}`, JSON.stringify(serverData));
-                    } else {
-                        console.error('Server returned error:', serverData);
-                        if (!sessionData) {
-                            showError('Groupe non trouvé sur le serveur');
-                        }
-                    }
+                    currentOrder = data;
+                    displayOrderData(data);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('orderContent').style.display = 'block';
                 } else {
-                    console.error('HTTP error:', response.status);
-                    if (!sessionData) {
-                        showError(`Erreur HTTP: ${response.status}`);
-                    }
+                    document.getElementById('loading').innerHTML = 
+                        `Erreur: ${data.error || 'Groupe non trouvé'}`;
                 }
             } catch (error) {
-                console.error('Failed to refresh from server:', error);
-                // Don't show error if we have local data
-                if (!sessionData) {
-                    showError('Impossible de charger les données pour ce groupe');
-                }
+                console.error('Error loading order:', error);
+                document.getElementById('loading').innerHTML = 
+                    'Erreur de connexion au serveur';
             }
         }
         
-        function refreshStatus() {
-            console.log('Refreshing status...');
-            refreshFromServer();
-        }
-        
-        function displaySessionData() {
-            if (!sessionData) {
-                document.getElementById('noData').style.display = 'block';
-                return;
+        function displayOrderData(data) {
+            // Update group info
+            const groupInfo = document.getElementById('groupInfo');
+            const timestamp = new Date(data.timestamp).toLocaleString('fr-CA');
+            
+            let html = `
+                <h2>Groupe: ${data.groupName}</h2>
+                <p>Commande soumise: ${timestamp}</p>
+            `;
+            
+            // Add plateau info if exists
+            if (data.plateauData && data.plateauData.count > 0) {
+                html += `
+                    <div class="plateau-info">
+                        <strong>🧀 Plateaux commandés:</strong> ${data.plateauData.count} plateau(x) - ${data.plateauData.total}$
+                    </div>
+                `;
             }
             
-            // Update session info
-            document.getElementById('sessionId').textContent = `Groupe: ${sessionData.groupName}`;
-            document.getElementById('sessionTimestamp').textContent = `Soumise le ${sessionData.timestamp}`;
+            groupInfo.innerHTML = html;
             
-            // Show plateaux if any
-            if (sessionData.plateauSelections && sessionData.plateauSelections.length > 0) {
-                document.getElementById('plateauSection').style.display = 'block';
-                document.getElementById('plateauList').textContent = sessionData.plateauSelections.join(', ');
-            }
+            // Update guest cards
+            const guestCards = document.getElementById('guestCards');
+            guestCards.innerHTML = '';
             
-            // Display guest selections
-            const container = document.getElementById('guestSelections');
-            let html = '';
-            
-            Object.keys(sessionData.selections).forEach(guestKey => {
-                const selections = sessionData.selections[guestKey];
-                if (selections.length > 0) {
-                    const guestName = sessionData.guestNames[guestKey] || guestKey;
-                    const guestNumber = guestKey.replace('guest', '');
-                    
-                    html += `
-                        <div class="guest-summary">
-                            <div class="guest-title">
-                                <span class="guest-number">Invité ${guestNumber}</span>
-                                <span class="guest-name-display">${guestName}</span>
+            Object.keys(data.selections || {}).forEach(guestKey => {
+                const guestNum = guestKey.replace('guest', '');
+                const guestName = data.guestNames?.[guestKey] || `Invité ${guestNum}`;
+                const wines = data.selections[guestKey];
+                
+                if (!wines || wines.length === 0) return;
+                
+                const servedCount = wines.filter(w => w.status === 'Servi').length;
+                const progressPercent = (servedCount / wines.length) * 100;
+                
+                const guestCard = document.createElement('div');
+                guestCard.className = 'guest-card';
+                
+                guestCard.innerHTML = `
+                    <div class="guest-header">
+                        <div class="guest-name">${guestName}</div>
+                        <div class="guest-progress">
+                            <span>${servedCount}/${wines.length}</span>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progressPercent}%"></div>
                             </div>
-                    `;
-                    
-                    selections.forEach(wine => {
-                        const statusClass = wine.status === 'servi' ? 'status-servi' : 'status-non-servi';
-                        const statusText = wine.status === 'servi' ? 'Servi' : 'En attente';
-                        
-                        html += `
-                            <div class="wine-service-item">
-                                <span class="wine-service-name">${wine.wine}</span>
-                                <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                    </div>
+                    <div class="wine-list">
+                        ${wines.map(wine => `
+                            <div class="wine-item">
+                                <div class="wine-name">${wine.wine}</div>
+                                <div class="status-badge ${wine.status === 'Servi' ? 'served' : 'pending'}">
+                                    ${wine.status === 'Servi' ? '✅ Servi' : '⏳ En attente'}
+                                </div>
                             </div>
-                        `;
-                    });
-                    
-                    html += '</div>';
-                }
+                        `).join('')}
+                    </div>
+                `;
+                
+                guestCards.appendChild(guestCard);
             });
-            
-            if (html) {
-                container.innerHTML = html;
-                document.getElementById('noData').style.display = 'none';
-            } else {
-                document.getElementById('noData').style.display = 'block';
-            }
         }
         
-        function sendEmailSummary() {
-            const email = document.getElementById('guestEmail').value.trim();
-            if (!email) {
-                alert('Veuillez entrer votre adresse email');
-                return;
-            }
-            
-            // TODO: Implement email sending functionality
-            alert(`Fonctionnalité email à venir! (${email})`);
-        }
+        // Auto-refresh every 30 seconds
+        setInterval(loadOrderData, 30000);
         
-        function showError(message) {
-            document.getElementById('errorText').textContent = message;
-            document.getElementById('errorMessage').style.display = 'block';
-        }
-        
-        function hideError() {
-            document.getElementById('errorMessage').style.display = 'none';
-        }
+        // Initial load
+        loadOrderData();
     </script>
 </body>
 </html>
